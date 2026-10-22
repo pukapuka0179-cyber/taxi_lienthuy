@@ -7,15 +7,19 @@
   const query = new URLSearchParams(location.search).get('lang');
   if (supported.includes(query)) lang = query;
   if (!supported.includes(lang)) lang = 'vi';
-  function t(key, values = {}) {
-    const result = window.Translations[lang]?.[key] ?? window.Translations.vi[key] ?? key;
+  function t(key, values = {}, fallback = key) {
+    const result = window.Translations[lang]?.[key] ?? window.Translations.vi[key] ?? fallback;
     return result.replace(/\{(\w+)\}/g, (match, name) => values[name] ?? SiteConfig[name] ?? match);
   }
   function apply() {
     document.documentElement.lang = lang === 'zh' ? 'zh-Hans' : lang;
-    document.querySelectorAll('[data-i18n]').forEach(node => { node.textContent = t(node.dataset.i18n); });
+    document.querySelectorAll('[data-i18n]').forEach(node => {
+      node.textContent = t(node.dataset.i18n, {}, node.textContent);
+    });
     for (const attr of ['placeholder', 'aria-label', 'title', 'alt', 'content']) {
-      document.querySelectorAll(`[data-i18n-${attr}]`).forEach(node => { node.setAttribute(attr, t(node.getAttribute(`data-i18n-${attr}`))); });
+      document.querySelectorAll(`[data-i18n-${attr}]`).forEach(node => {
+        node.setAttribute(attr, t(node.getAttribute(`data-i18n-${attr}`), {}, node.getAttribute(attr) || ''));
+      });
     }
     document.querySelectorAll('[data-language]').forEach(select => { select.value = lang; });
     document.title = `${t('nav.' + document.body.dataset.page)} | ${t('brand.full')}`;
