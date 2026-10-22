@@ -127,15 +127,23 @@ async function main() {
   // The generated message contains real newlines; user data stays literal text.
   await visit(`${base}/lien-he.html?lang=en&service=wedding#booking`);
   assert.equal(await evaluate(`document.querySelector('[name="trip_service"]:checked').value`), 'Cưới hỏi');
-  assert.equal(await evaluate('document.getElementById("tripDate").type'), 'datetime-local');
-  await evaluate(`(() => { for (const [id,value] of Object.entries({customerName:'Test <script>alert(1)</script>',customerPhone:'+84 914 531 983',pickupPoint:'Da Nang',dropPoint:'Hoi An',tripDate:'2030-12-25T09:30',tripNotes:'2 suitcases'})) document.getElementById(id).value=value; document.querySelector('form button[type=submit]').click(); })()`);
+  assert.equal(await evaluate('document.getElementById("tripDate").type'), 'date');
+  assert.equal(await evaluate('document.getElementById("tripTime").type'), 'time');
+  await evaluate(`(() => { for (const [id,value] of Object.entries({customerName:'Test <script>alert(1)</script>',customerPhone:'+84 914 531 983',pickupPoint:'Da Nang',dropPoint:'Hoi An',tripDate:'2030-12-25',tripTime:'09:30',tripNotes:'2 suitcases'})) document.getElementById(id).value=value; document.querySelector('form button[type=submit]').click(); })()`);
   assert.equal(await evaluate('document.getElementById("bookingResult").hidden'), false);
   const message = await evaluate('document.getElementById("bookingMessage").value');
   assert.match(message, /Test <script>/); assert.match(message, /\n/); assert.match(message, /\+84914531983/);
-  assert.match(message, /25\/12\/2030/); assert.match(message, /09:30/);
+  assert.match(message, /Departure date: 25\/12\/2030/); assert.match(message, /Departure time: 09:30/);
   assert.equal(await evaluate('document.getElementById("bookingStatus").textContent'), '');
   await evaluate(`document.getElementById('tripDate').scrollIntoView({behavior:'instant',block:'center'})`);
-  await screenshot('contact-date-time-320.png');
+  await screenshot('contact-separate-date-time-320.png');
+  // Optional date and time work independently, without inventing a missing value.
+  await evaluate(`document.getElementById('tripTime').value=''; document.querySelector('form button[type=submit]').click()`);
+  assert.doesNotMatch(await evaluate('document.getElementById("bookingMessage").value'), /Departure time:/);
+  await evaluate(`document.getElementById('tripDate').value=''; document.getElementById('tripTime').value='16:45'; document.querySelector('form button[type=submit]').click()`);
+  const timeOnly = await evaluate('document.getElementById("bookingMessage").value');
+  assert.match(timeOnly, /Departure time: 16:45/);
+  assert.doesNotMatch(timeOnly, /Departure date:/);
   await evaluate(`I18n.setLanguage('zh')`);
   assert.equal(await evaluate('document.getElementById("bookingResult").hidden'), true);
   await visit(`${base}/quy-trinh.html?lang=zh`);

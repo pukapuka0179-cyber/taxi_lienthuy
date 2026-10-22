@@ -327,7 +327,7 @@ Object.assign(window.Translations.zh, {
   "contact.027": "婚庆用车",
   "contact.028": "跨省长途",
   "contact.029": "节日返乡",
-  "contact.030": "出发时间",
+  "contact.030": "出发日期",
   "contact.031": "上车地点",
   "contact.032": "目的地",
   "contact.033": "其他备注（人数、行李及特殊要求）",

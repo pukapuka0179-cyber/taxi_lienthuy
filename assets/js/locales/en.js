@@ -327,7 +327,7 @@ Object.assign(window.Translations.en, {
   "contact.027": "Wedding car",
   "contact.028": "Intercity journey",
   "contact.029": "Holiday visit home",
-  "contact.030": "Departure time",
+  "contact.030": "Departure date",
   "contact.031": "Pick-up location",
   "contact.032": "Destination",
   "contact.033": "Additional notes (passengers, luggage and special requests)",

@@ -327,7 +327,7 @@ Object.assign(window.Translations.vi, {
   "contact.027": "Cưới hỏi rước dâu",
   "contact.028": "Đi tỉnh xa",
   "contact.029": "Về quê lễ tết",
-  "contact.030": "Thời gian khởi hành",
+  "contact.030": "Ngày khởi hành",
   "contact.031": "Điểm đón",
   "contact.032": "Điểm đến",
   "contact.033": "Ghi chú thêm (Số lượng người, hành lý mang theo, yêu cầu riêng)",
