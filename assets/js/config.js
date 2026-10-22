@@ -4,6 +4,8 @@ window.SiteConfig = {
   phone: '0914531983',
   phoneDisplay: '0914.531.983',
   zalo: 'https://zalo.me/0914531983',
+  // Dùng mã form nhận sau khi xác nhận email trên FormSubmit; không nhập email tại đây.
+  contactFormId: '50ce842443db91254aced2a2a0f93319',
   navigation: [
     { key: 'home', href: 'index.html' },
     { key: 'services', href: 'dich-vu.html' },

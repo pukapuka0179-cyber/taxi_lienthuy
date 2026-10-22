@@ -9,13 +9,12 @@ main .min-w-0, main .flex-1 { min-width: 0; }
 body[data-page="home"] .hero-real-photo { object-position: 50% 60%; }
 body[data-page="home"] h1 > .text-emerald-vivid { white-space: nowrap; }
 .real-photo { object-position: center 65%; }
-.booking-result { margin-top: 24px; border: 1px solid #a7f3d0; padding: 24px; border-radius: 12px; background: var(--color-emerald-light); }
-.booking-result h3 { font-weight: 600; font-size: 20px; margin: 0 0 8px; }
-.booking-result p { line-height: 1.7; font-size: 14px; margin: 0 0 16px; }
-.booking-result textarea, .copy-fallback { display: block; width: 100%; padding: 16px; border: 1px solid var(--color-border-subtle); border-radius: 8px; background: white; color: var(--color-ink-primary); font-size: 14px; line-height: 1.7; resize: vertical; }
-.booking-result textarea { min-height: 220px; margin-bottom: 16px; }
-.booking-result .result-actions { display: flex; flex-wrap: wrap; gap: 10px; }
-#bookingStatus { margin-top: 12px; color: var(--color-primary); }
+.copy-fallback { display: block; width: 100%; padding: 16px; border: 1px solid var(--color-border-subtle); border-radius: 8px; background: white; color: var(--color-ink-primary); font-size: 14px; line-height: 1.7; resize: vertical; }
+.booking-status { margin-top: 20px; padding: 16px; border-radius: 8px; line-height: 1.7; font-size: 14px; }
+.booking-status[data-state="success"] { background: var(--color-emerald-light); color: var(--color-emerald-deep); }
+.booking-status[data-state="error"] { background: var(--color-error-container); color: var(--color-on-error-container); }
+.form-honeypot { display: none; }
+body[data-page="contact"] button:disabled { opacity: .65; cursor: wait; }
 .copy-fallback { min-height: 180px; margin-top: 16px; }
 body[data-page="contact"] label { line-height: 1.65; }
 body[data-page="contact"] main section > div:not(.absolute) { position: relative; z-index: 1; }

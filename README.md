@@ -56,7 +56,7 @@ assets/
       en.js                     Nội dung tiếng Anh
       zh.js                     Nội dung tiếng Trung giản thể
     pages/
-      contact.js                Kiểm tra form và tạo tin nhắn tư vấn
+      contact.js                Kiểm tra form và gửi yêu cầu qua dịch vụ email
   images/                       Ảnh thực tế và ảnh minh họa từ mẫu
   fonts/                        Font Be Vietnam Pro và biểu tượng
 tools/                          Kiểm tra tùy chọn, không cần khi chạy web
@@ -76,7 +76,13 @@ Bộ chọn ngôn ngữ hỗ trợ Việt / English / 中文, nhớ lựa chọn
 
 ## Form tư vấn
 
-Form kiểm tra thông tin rồi tạo nội dung tin nhắn. Khách bấm **Sao chép nội dung**, mở Zalo, dán và gửi. Website chưa có backend nên không tự gửi yêu cầu, không lưu thông tin khách trên máy chủ và không tự xác nhận đặt xe. Muốn nhận form tự động cần nối thêm API hoặc dịch vụ nhận form.
+Form gửi dữ liệu bằng POST đến FormSubmit, giữ CAPTCHA mặc định và thêm trường bẫy bot. Khách không cần sao chép tin nhắn hay tự mở ứng dụng email. Sau khi hoàn thành bước xác minh của dịch vụ, khách quay lại trang Liên hệ bằng ngôn ngữ đã chọn và thấy thông báo gửi yêu cầu.
+
+**Đã cấu hình:** email nhận đã được kích hoạt và `contactFormId` trong `assets/js/config.js` sử dụng mã định tuyến lấy từ thư FormSubmit. Không đưa địa chỉ email nhận vào file này. Có thể dùng trang cấu hình cục bộ `.preview/email-setup.html` để kích hoạt email mới; file này không được đưa lên GitHub hoặc hosting.
+
+Để đổi email nhận, kích hoạt địa chỉ mới trên FormSubmit rồi thay `contactFormId` bằng mã tương ứng. Mã form là định tuyến công khai, không phải mật khẩu. Nó giấu địa chỉ email trong mã nguồn nhưng không ngăn mọi hình thức spam; CAPTCHA và bộ lọc phía dịch vụ xử lý việc hạn chế gửi rác. Không thêm `_captcha=false` vào form.
+
+Gửi form không tự xác nhận đặt xe. Nhà xe cần liên hệ khách để chốt giá và lịch xe. Email và CAPTCHA được dịch vụ bên ngoài xử lý. Thư thử kích hoạt đã được nhận; cần gửi thử từ trang liên hệ sau khi triển khai để kiểm tra toàn bộ luồng. Phải mở website qua HTTP/HTTPS để gửi, không gửi từ `file://`.
 
 ## Kiểm tra tùy chọn
 

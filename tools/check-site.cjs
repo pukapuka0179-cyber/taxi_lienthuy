@@ -124,28 +124,65 @@ async function main() {
   await evaluate(`document.querySelector('[data-trip="wedding"]').click()`);
   assert.equal(await evaluate(`document.querySelectorAll('.trip-btn[aria-pressed="true"]').length`), 1);
   assert.match(await evaluate(`document.getElementById('dynamicZaloLink').href`), /service=wedding/);
-  // The generated message contains real newlines; user data stays literal text.
+  // Intercept native submission in the browser: no test data is sent to a real mailbox.
   await visit(`${base}/lien-he.html?lang=en&service=wedding#booking`);
   assert.equal(await evaluate(`document.querySelector('[name="trip_service"]:checked').value`), 'Cưới hỏi');
   assert.equal(await evaluate('document.getElementById("tripDate").type'), 'date');
   assert.equal(await evaluate('document.getElementById("tripTime").type'), 'time');
-  await evaluate(`(() => { for (const [id,value] of Object.entries({customerName:'Test <script>alert(1)</script>',customerPhone:'+84 914 531 983',pickupPoint:'Da Nang',dropPoint:'Hoi An',tripDate:'2030-12-25',tripTime:'09:30',tripNotes:'2 suitcases'})) document.getElementById(id).value=value; document.querySelector('form button[type=submit]').click(); })()`);
-  assert.equal(await evaluate('document.getElementById("bookingResult").hidden'), false);
-  const message = await evaluate('document.getElementById("bookingMessage").value');
-  assert.match(message, /Test <script>/); assert.match(message, /\n/); assert.match(message, /\+84914531983/);
-  assert.match(message, /Departure date: 25\/12\/2030/); assert.match(message, /Departure time: 09:30/);
-  assert.equal(await evaluate('document.getElementById("bookingStatus").textContent'), '');
+  assert.equal(await evaluate(`document.querySelector('[data-i18n="form.time"]').textContent.trim()`), 'Departure time');
+  // A stale dictionary must preserve readable text instead of showing the key.
+  await evaluate(`window.savedTimeTranslations=Object.fromEntries(Object.entries(Translations).map(([lang,dict])=>[lang,dict['form.time']])); Object.values(Translations).forEach(dict=>delete dict['form.time']); I18n.apply()`);
+  assert.equal(await evaluate(`document.querySelector('[data-i18n="form.time"]').textContent.trim()`), 'Departure time');
+  await evaluate(`Object.entries(window.savedTimeTranslations).forEach(([lang,text])=>Translations[lang]['form.time']=text); I18n.apply()`);
+  await evaluate(`(() => {
+    window.testSubmissions=[];
+    HTMLFormElement.prototype.submit=function(){window.testSubmissions.push({url:this.action,method:this.method,fields:Object.fromEntries(new FormData(this))})};
+    for (const [id,value] of Object.entries({customerName:'Test <script>alert(1)</script>',customerPhone:'+84 914 531 983',pickupPoint:'Da Nang',dropPoint:'Hoi An',tripDate:'2030-12-25',tripTime:'09:30',tripNotes:'2 suitcases'})) document.getElementById(id).value=value;
+    SiteConfig.contactFormId=''; document.querySelector('form button[type=submit]').click();
+  })()`);
+  assert.equal(await evaluate('window.testSubmissions.length'), 0);
+  assert.equal(await evaluate('document.getElementById("bookingStatus").dataset.state'), 'error');
+  assert.equal(await evaluate('document.getElementById("customerName").value'), 'Test <script>alert(1)</script>');
+  await evaluate(`SiteConfig.contactFormId='0123456789abcdef0123456789abcdef'; document.querySelector('form button[type=submit]').click()`);
+  const submission = await evaluate('window.testSubmissions[0]');
+  assert.equal(submission.url,'https://formsubmit.co/0123456789abcdef0123456789abcdef');
+  assert.equal(submission.method,'post');
+  assert.equal(submission.fields.name,'Test <script>alert(1)</script>');
+  assert.equal(submission.fields.phone,'+84914531983');
+  assert.equal(submission.fields.trip_service,'Cưới hỏi');
+  assert.equal(submission.fields.date,'2030-12-25');
+  assert.equal(submission.fields.time,'09:30');
+  assert.equal(submission.fields.notes,'2 suitcases');
+  assert.equal(submission.fields._honey,'');
+  assert.notEqual(submission.fields._captcha,'false');
+  assert.equal(submission.fields.language,'en');
+  const next = new URL(submission.fields._next);
+  assert.equal(next.origin,base); assert.equal(next.searchParams.get('sent'),'1');
+  assert.equal(next.searchParams.get('lang'),'en'); assert.equal(next.hash,'#booking');
+  assert.equal(await evaluate('document.querySelector("form button[type=submit]").disabled'),true);
+  await evaluate(`document.querySelector('form').dispatchEvent(new Event('submit',{cancelable:true}))`);
+  assert.equal(await evaluate('window.testSubmissions.length'),1);
+  // Going back from the provider restores the form, allowing a correction or retry.
+  await evaluate(`window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true}))`);
+  assert.equal(await evaluate('document.querySelector("form button[type=submit]").disabled'),false);
   await evaluate(`document.getElementById('tripDate').scrollIntoView({behavior:'instant',block:'center'})`);
   await screenshot('contact-separate-date-time-320.png');
-  // Optional date and time work independently, without inventing a missing value.
+  // Optional date and time remain independent in the posted fields.
   await evaluate(`document.getElementById('tripTime').value=''; document.querySelector('form button[type=submit]').click()`);
-  assert.doesNotMatch(await evaluate('document.getElementById("bookingMessage").value'), /Departure time:/);
-  await evaluate(`document.getElementById('tripDate').value=''; document.getElementById('tripTime').value='16:45'; document.querySelector('form button[type=submit]').click()`);
-  const timeOnly = await evaluate('document.getElementById("bookingMessage").value');
-  assert.match(timeOnly, /Departure time: 16:45/);
-  assert.doesNotMatch(timeOnly, /Departure date:/);
+  assert.equal(await evaluate('window.testSubmissions.at(-1).fields.time'),'');
+  assert.equal(await evaluate('window.testSubmissions.at(-1).fields.date'),'2030-12-25');
+  await evaluate(`window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})); document.getElementById('tripDate').value=''; document.getElementById('tripTime').value='16:45'; document.querySelector('form button[type=submit]').click()`);
+  const timeOnly = await evaluate('window.testSubmissions.at(-1).fields');
+  assert.equal(timeOnly.time,'16:45'); assert.equal(timeOnly.date,'');
+  await evaluate(`window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})); HTMLFormElement.prototype.submit=function(){throw new Error('Simulated navigation failure')}; document.querySelector('form button[type=submit]').click()`);
+  assert.equal(await evaluate('document.getElementById("bookingStatus").textContent === I18n.t("form.error")'),true);
+  assert.equal(await evaluate('document.getElementById("customerName").value'),'Test <script>alert(1)</script>');
+  await visit(`${base}/lien-he.html?lang=en&sent=1#booking`);
+  assert.equal(await evaluate('document.getElementById("bookingStatus").dataset.state'),'success');
+  assert.equal(await evaluate('document.getElementById("bookingStatus").hidden'),false);
+  assert.equal(await evaluate('new URLSearchParams(location.search).has("sent")'),false);
   await evaluate(`I18n.setLanguage('zh')`);
-  assert.equal(await evaluate('document.getElementById("bookingResult").hidden'), true);
+  assert.equal(await evaluate('document.getElementById("bookingStatus").textContent === I18n.t("form.sent")'),true);
   await visit(`${base}/quy-trinh.html?lang=zh`);
   assert.equal(await evaluate('I18n.t("message.template").includes("\\n")'), true);
   await evaluate(`window.copyText = async text => { window.copiedMessage = text; return true; }; document.getElementById('copyTemplateBtn').click()`);

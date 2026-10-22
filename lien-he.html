@@ -106,16 +106,22 @@
 <div class="bg-surface-card rounded-xl p-space-lg md:p-space-xl shadow-[0_12px_28px_-4px_rgba(5,150,105,0.08),0_4px_8px_-2px_rgba(217,119,6,0.04)]">
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-xs pb-space-md">
 <div>
-<h2 class="font-headline-lg text-headline-lg text-ink-primary tracking-tight"> <span data-i18n="contact.018">Chuẩn Bị Yêu Cầu Tư Vấn</span> </h2>
-<p class="font-body-sm text-body-sm text-on-surface-variant"> <span data-i18n="contact.019">Điền lộ trình để tạo nội dung yêu cầu, sau đó sao chép và gửi qua Zalo.</span> </p>
+<h2 class="font-headline-lg text-headline-lg text-ink-primary tracking-tight"> <span data-i18n="contact.018">Gửi Yêu Cầu Tư Vấn</span> </h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant"> <span data-i18n="contact.019">Điền thông tin bên dưới và gửi yêu cầu. Nhà xe sẽ liên hệ để tư vấn và báo giá.</span> </p>
 </div>
 <div class="self-start sm:self-center inline-flex items-center gap-1.5 bg-emerald-light text-emerald-deep px-3 py-1.5 rounded-full font-label-sm text-label-sm">
 <span aria-hidden="true" class="material-symbols-outlined text-[16px] text-emerald-vivid">bolt</span>
-<span> <span data-i18n="contact.020">Tư vấn trực tiếp qua Zalo</span> </span>
+<span> <span data-i18n="contact.020">Nhà xe liên hệ lại</span> </span>
 </div>
 </div>
 <div id="booking"></div>
-<form class="space-y-space-md mt-space-sm" id="contactBookingForm">
+<form class="space-y-space-md mt-space-sm" id="contactBookingForm" method="post">
+<input type="hidden" name="_subject" value="Yêu cầu tư vấn xe"/>
+<input type="hidden" name="_template" value="table"/>
+<input type="hidden" name="_next" value=""/>
+<input type="hidden" name="_url" value=""/>
+<input type="hidden" name="language" value="vi"/>
+<div class="form-honeypot" aria-hidden="true"><input type="text" name="_honey" tabindex="-1" autocomplete="off"/></div>
 <div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
 <div>
 <label class="block font-label-md text-label-md text-ink-secondary mb-1.5" for="customerName"> <span data-i18n="contact.021">Họ và tên quý khách</span> <span class="text-amber-vibrant">*</span>
@@ -202,19 +208,15 @@
 <div class="flex items-start gap-space-xs">
 <span aria-hidden="true" class="material-symbols-outlined text-amber-vibrant text-[22px] shrink-0 mt-0.5">verified_user</span>
 <div class="font-body-sm text-body-sm text-on-secondary-container">
-<span class="font-bold text-secondary"> <span data-i18n="contact.034">Lưu ý quan trọng:</span> </span> <span data-i18n="contact.035">Thông tin được tạo ngay trên thiết bị của bạn. Hãy sao chép nội dung và gửi cho nhà xe qua Zalo</span> <strong><span data-phone-text>0914.531.983</span></strong> <span data-i18n="contact.036">để được tư vấn và xác nhận giá. Yêu cầu chỉ được nhà xe tiếp nhận sau khi bạn gửi tin nhắn.</span> </div>
+<span class="font-bold text-secondary"> <span data-i18n="contact.034">Lưu ý quan trọng:</span> </span> <span data-i18n="contact.035">Thông tin của bạn được gửi cho nhà xe để tư vấn chuyến đi. Nếu cần xe gấp, vui lòng gọi</span> <strong><span data-phone-text>0914.531.983</span></strong> <span data-i18n="contact.036">. Lịch xe và giá được xác nhận khi nhà xe liên hệ; gửi form chưa phải là xác nhận đặt xe.</span> </div>
 </div>
 </div>
 <button class="w-full py-3.5 px-space-lg rounded-lg bg-amber-vibrant hover:bg-secondary text-on-secondary font-headline-sm text-headline-sm shadow-[0_6px_20px_rgba(217,119,6,0.35)] transition-all flex items-center justify-center gap-space-xs" type="submit">
-<span> <span data-i18n="contact.018">Chuẩn Bị Yêu Cầu Tư Vấn</span> </span>
+<span> <span data-i18n="contact.018">Gửi Yêu Cầu Tư Vấn</span> </span>
 <span aria-hidden="true" class="material-symbols-outlined text-[20px]">send</span>
 </button>
 </form>
-<div class="booking-result" id="bookingResult" hidden>
-<h3 data-i18n="form.ready"></h3><p data-i18n="form.next"></p>
-<textarea id="bookingMessage" readonly data-i18n-aria-label="form.message"></textarea>
-<div class="result-actions"><button id="copyBooking" class="button button-green" type="button" data-i18n="copy.action"></button><a class="button button-amber" data-zalo href="https://zalo.me/0914531983" target="_blank" rel="noopener noreferrer" data-i18n="form.openZalo"></a></div>
-<p id="bookingStatus" role="status" aria-live="polite"></p></div>
+<p id="bookingStatus" class="booking-status" role="status" aria-live="polite" tabindex="-1" hidden></p>
 </div>
 </div>
 </div>
