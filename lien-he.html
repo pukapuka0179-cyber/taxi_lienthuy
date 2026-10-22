@@ -21,6 +21,7 @@
   <script defer src="assets/js/common/footer.js"></script>
   <script defer src="assets/js/common/contact.js"></script>
   <script defer src="assets/js/i18n.js"></script>
+  <script defer src="assets/js/common/time-picker.js"></script>
   <script defer src="assets/js/main.js"></script>
   <script defer src="assets/js/pages/contact.js"></script>
 </head>
@@ -178,9 +179,13 @@
 </div>
 </div>
 <div class="sm:col-span-1">
-<label class="block font-label-md text-label-md text-ink-secondary mb-1.5" for="tripTime"> <span data-i18n="form.time">Giờ khởi hành</span> </label>
-<div class="relative">
-<input class="w-full h-12 px-space-md rounded-lg bg-surface text-ink-primary font-body-sm text-body-sm outline-none focus:ring-2 focus:ring-border-focus focus:bg-surface-card transition-all" id="tripTime" name="time" type="time" step="60"/>
+<label class="block font-label-md text-label-md text-ink-secondary mb-1.5" for="tripHour" id="tripTimeLabel"> <span data-i18n="form.time">Giờ khởi hành</span> </label>
+<div class="time-picker" data-time-picker role="group" aria-labelledby="tripTimeLabel">
+<input id="tripTime" name="time" type="hidden"/>
+<select id="tripHour" data-time-hour aria-label="Giờ" data-i18n-aria-label="form.hour"><option value="" data-i18n="form.hour">Giờ</option></select>
+<span aria-hidden="true">:</span>
+<select data-time-minute aria-label="Phút" data-i18n-aria-label="form.minute"></select>
+<select data-time-period aria-label="Buổi" data-i18n-aria-label="form.period"><option value="am" data-i18n="form.morning">Sáng</option><option value="pm" data-i18n="form.afternoon">Chiều</option></select>
 </div>
 </div>
 <div class="sm:col-span-1">

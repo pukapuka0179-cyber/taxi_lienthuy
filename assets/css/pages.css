@@ -19,6 +19,9 @@ body[data-page="contact"] button:disabled { opacity: .65; cursor: wait; }
 body[data-page="contact"] label { line-height: 1.65; }
 body[data-page="contact"] main section > div:not(.absolute) { position: relative; z-index: 1; }
 body[data-page="contact"] input { min-width: 0; }
+.time-picker { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) minmax(0, 1.35fr); align-items: center; gap: 4px; }
+.time-picker select { min-width: 0; width: 100%; height: 48px; border: 0; border-radius: 8px; padding: 0 6px; background: var(--color-surface); color: var(--color-ink-primary); font: inherit; font-size: 14px; }
+.time-picker select:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: 1px; }
 html[lang="zh-Hans"] body { font-family: var(--font-chinese); }
 html[lang="en"] .brand-copy small { letter-spacing: 0; }
 @media (max-width: 767px) {

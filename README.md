@@ -50,6 +50,7 @@ assets/
       header.js                 Header, menu desktop/mobile, chọn ngôn ngữ
       footer.js                 Footer chung
       contact.js                CTA và nút liên hệ nổi
+      time-picker.js            Bộ chọn giờ, phút và Sáng / Chiều dùng chung
     locales/
       common.js                 Bản dịch các thành phần dùng chung
       vi.js                     Nội dung tiếng Việt
@@ -77,6 +78,8 @@ Bộ chọn ngôn ngữ hỗ trợ Việt / English / 中文, nhớ lựa chọn
 ## Form tư vấn
 
 Form gửi dữ liệu bằng POST đến FormSubmit, giữ CAPTCHA mặc định và thêm trường bẫy bot. Khách không cần sao chép tin nhắn hay tự mở ứng dụng email. Sau khi hoàn thành bước xác minh của dịch vụ, khách quay lại trang Liên hệ bằng ngôn ngữ đã chọn và thấy thông báo gửi yêu cầu.
+
+Ngày và giờ chọn riêng. Giờ dùng các ô giờ, phút và Sáng / Chiều (AM / PM với tiếng Anh, 上午 / 下午 với tiếng Trung), không phụ thuộc nhãn SA / CH của trình duyệt. Dữ liệu email dùng định dạng 24 giờ để tránh nhầm lẫn, ví dụ 04:00 Chiều được gửi thành 16:00.
 
 **Đã cấu hình:** email nhận đã được kích hoạt và `contactFormId` trong `assets/js/config.js` sử dụng mã định tuyến lấy từ thư FormSubmit. Không đưa địa chỉ email nhận vào file này. Có thể dùng trang cấu hình cục bộ `.preview/email-setup.html` để kích hoạt email mới; file này không được đưa lên GitHub hoặc hosting.
 

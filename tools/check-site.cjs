@@ -128,8 +128,19 @@ async function main() {
   await visit(`${base}/lien-he.html?lang=en&service=wedding#booking`);
   assert.equal(await evaluate(`document.querySelector('[name="trip_service"]:checked').value`), 'Cưới hỏi');
   assert.equal(await evaluate('document.getElementById("tripDate").type'), 'date');
-  assert.equal(await evaluate('document.getElementById("tripTime").type'), 'time');
+  assert.equal(await evaluate('document.getElementById("tripTime").type'), 'hidden');
   assert.equal(await evaluate(`document.querySelector('[data-i18n="form.time"]').textContent.trim()`), 'Departure time');
+  // Noon, midnight and afternoon must reach the mailbox as unambiguous 24-hour times.
+  await evaluate(`window.chooseTime=(hour,minute,period)=>{document.getElementById('tripHour').value=hour; document.querySelector('[data-time-minute]').value=minute; const control=document.querySelector('[data-time-period]'); control.value=period; control.dispatchEvent(new Event('change',{bubbles:true}))}`);
+  for (const [hour, minute, period, expected] of [['4','00','pm','16:00'],['12','15','pm','12:15'],['12','00','am','00:00'],['','00','am','']]) {
+    await evaluate(`window.chooseTime(${JSON.stringify(hour)},${JSON.stringify(minute)},${JSON.stringify(period)})`);
+    assert.equal(await evaluate('document.getElementById("tripTime").value'), expected);
+  }
+  await evaluate(`I18n.setLanguage('vi')`);
+  assert.deepEqual(await evaluate(`Array.from(document.querySelector('[data-time-period]').options, option=>option.textContent)`), ['Sáng','Chiều']);
+  await evaluate(`I18n.setLanguage('zh')`);
+  assert.deepEqual(await evaluate(`Array.from(document.querySelector('[data-time-period]').options, option=>option.textContent)`), ['上午','下午']);
+  await evaluate(`I18n.setLanguage('en')`);
   // A stale dictionary must preserve readable text instead of showing the key.
   await evaluate(`window.savedTimeTranslations=Object.fromEntries(Object.entries(Translations).map(([lang,dict])=>[lang,dict['form.time']])); Object.values(Translations).forEach(dict=>delete dict['form.time']); I18n.apply()`);
   assert.equal(await evaluate(`document.querySelector('[data-i18n="form.time"]').textContent.trim()`), 'Departure time');
@@ -137,7 +148,8 @@ async function main() {
   await evaluate(`(() => {
     window.testSubmissions=[];
     HTMLFormElement.prototype.submit=function(){window.testSubmissions.push({url:this.action,method:this.method,fields:Object.fromEntries(new FormData(this))})};
-    for (const [id,value] of Object.entries({customerName:'Test <script>alert(1)</script>',customerPhone:'+84 914 531 983',pickupPoint:'Da Nang',dropPoint:'Hoi An',tripDate:'2030-12-25',tripTime:'09:30',tripNotes:'2 suitcases'})) document.getElementById(id).value=value;
+    for (const [id,value] of Object.entries({customerName:'Test <script>alert(1)</script>',customerPhone:'+84 914 531 983',pickupPoint:'Da Nang',dropPoint:'Hoi An',tripDate:'2030-12-25',tripNotes:'2 suitcases'})) document.getElementById(id).value=value;
+    window.chooseTime('9','30','am');
     SiteConfig.contactFormId=''; document.querySelector('form button[type=submit]').click();
   })()`);
   assert.equal(await evaluate('window.testSubmissions.length'), 0);
@@ -165,13 +177,15 @@ async function main() {
   // Going back from the provider restores the form, allowing a correction or retry.
   await evaluate(`window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true}))`);
   assert.equal(await evaluate('document.querySelector("form button[type=submit]").disabled'),false);
-  await evaluate(`document.getElementById('tripDate').scrollIntoView({behavior:'instant',block:'center'})`);
+  assert.equal(await evaluate(`document.getElementById('tripHour').value`), '9');
+  await evaluate(`I18n.setLanguage('vi'); document.getElementById('tripHour').scrollIntoView({behavior:'instant',block:'center'})`);
   await screenshot('contact-separate-date-time-320.png');
+  await evaluate(`I18n.setLanguage('en')`);
   // Optional date and time remain independent in the posted fields.
-  await evaluate(`document.getElementById('tripTime').value=''; document.querySelector('form button[type=submit]').click()`);
+  await evaluate(`window.chooseTime('','00','am'); document.querySelector('form button[type=submit]').click()`);
   assert.equal(await evaluate('window.testSubmissions.at(-1).fields.time'),'');
   assert.equal(await evaluate('window.testSubmissions.at(-1).fields.date'),'2030-12-25');
-  await evaluate(`window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})); document.getElementById('tripDate').value=''; document.getElementById('tripTime').value='16:45'; document.querySelector('form button[type=submit]').click()`);
+  await evaluate(`window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})); document.getElementById('tripDate').value=''; window.chooseTime('4','45','pm'); document.querySelector('form button[type=submit]').click()`);
   const timeOnly = await evaluate('window.testSubmissions.at(-1).fields');
   assert.equal(timeOnly.time,'16:45'); assert.equal(timeOnly.date,'');
   await evaluate(`window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})); HTMLFormElement.prototype.submit=function(){throw new Error('Simulated navigation failure')}; document.querySelector('form button[type=submit]').click()`);
