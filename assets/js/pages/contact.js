@@ -26,7 +26,15 @@
       `${I18n.t('form.pickup')}: ${value('pickupPoint')}`,
       `${I18n.t('form.destination')}: ${value('dropPoint')}`
     ];
-    if (value('tripDate')) lines.push(`${I18n.t('form.date')}: ${value('tripDate')}`);
+    if (value('tripDate')) {
+      // Giữ nguyên ngày giờ đã chọn, không đổi theo múi giờ của thiết bị.
+      const locale = { vi: 'vi-VN', en: 'en-GB', zh: 'zh-CN' }[I18n.language];
+      const departure = new Intl.DateTimeFormat(locale, {
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC'
+      }).format(new Date(value('tripDate') + 'Z'));
+      lines.push(`${I18n.t('form.date')}: ${departure}`);
+    }
     if (value('tripNotes')) lines.push(`${I18n.t('form.notes')}: ${value('tripNotes')}`);
     lines.push(I18n.t('message.ending'));
     message.value = lines.join('\n');

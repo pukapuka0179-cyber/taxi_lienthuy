@@ -164,12 +164,11 @@
 </label>
 </div>
 </div>
-<div class="grid grid-cols-1 sm:grid-cols-3 gap-space-md">
-<div class="sm:col-span-1">
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
+<div class="departure-field">
 <label class="block font-label-md text-label-md text-ink-secondary mb-1.5" for="tripDate"> <span data-i18n="contact.030">Thời gian khởi hành</span> </label>
 <div class="relative">
-<input class="w-full h-12 px-space-md pl-10 rounded-lg bg-surface text-ink-primary font-body-sm text-body-sm outline-none focus:ring-2 focus:ring-border-focus focus:bg-surface-card transition-all placeholder:text-ink-muted" id="tripDate" name="date" placeholder="Hôm nay, ngày mai..." data-i18n-placeholder="contact.047" type="text"/>
-<span aria-hidden="true" class="material-symbols-outlined absolute left-3 top-3 text-[20px] text-ink-muted">calendar_today</span>
+<input class="w-full h-12 px-space-md rounded-lg bg-surface text-ink-primary font-body-sm text-body-sm outline-none focus:ring-2 focus:ring-border-focus focus:bg-surface-card transition-all" id="tripDate" name="date" type="datetime-local" step="60"/>
 </div>
 </div>
 <div class="sm:col-span-1">

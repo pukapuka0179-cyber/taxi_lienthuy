@@ -20,6 +20,7 @@ body[data-page="home"] h1 > .text-emerald-vivid { white-space: nowrap; }
 body[data-page="contact"] label { line-height: 1.65; }
 body[data-page="contact"] main section > div:not(.absolute) { position: relative; z-index: 1; }
 body[data-page="contact"] input { min-width: 0; }
+body[data-page="contact"] .departure-field { grid-column: 1 / -1; }
 html[lang="zh-Hans"] body { font-family: var(--font-chinese); }
 html[lang="en"] .brand-copy small { letter-spacing: 0; }
 @media (max-width: 767px) {
