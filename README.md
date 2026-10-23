@@ -77,15 +77,15 @@ Bộ chọn ngôn ngữ hỗ trợ Việt / English / 中文, nhớ lựa chọn
 
 ## Form tư vấn
 
-Form gửi dữ liệu bằng POST đến FormSubmit, giữ CAPTCHA mặc định và thêm trường bẫy bot. Khách không cần sao chép tin nhắn hay tự mở ứng dụng email. Sau khi hoàn thành bước xác minh của dịch vụ, khách quay lại trang Liên hệ bằng ngôn ngữ đã chọn và thấy thông báo gửi yêu cầu.
+Form gửi JSON bằng POST đến API AJAX của FormSubmit, không chuyển khách sang trang ngoài. Chỉ hiện thành công khi API trả xác nhận rõ ràng; HTTP 200 đơn thuần hoặc đường dẫn `?sent=1` không được coi là đã gửi. Nếu dịch vụ lỗi SSL, mất mạng hoặc không trả xác nhận trong 12 giây, form báo lỗi tại chỗ và giữ nguyên dữ liệu để khách liên hệ hotline. Không tự gửi lại khi hết thời gian chờ vì dịch vụ có thể đã nhận yêu cầu nhưng chưa trả kết quả.
 
 Ngày và giờ chọn riêng. Giờ dùng các ô giờ, phút và Sáng / Chiều (AM / PM với tiếng Anh, 上午 / 下午 với tiếng Trung), không phụ thuộc nhãn SA / CH của trình duyệt. Dữ liệu email dùng định dạng 24 giờ để tránh nhầm lẫn, ví dụ 04:00 Chiều được gửi thành 16:00.
 
-**Đã cấu hình:** email nhận đã được kích hoạt và `contactFormId` trong `assets/js/config.js` sử dụng mã định tuyến lấy từ thư FormSubmit. Không đưa địa chỉ email nhận vào file này. Có thể dùng trang cấu hình cục bộ `.preview/email-setup.html` để kích hoạt email mới; file này không được đưa lên GitHub hoặc hosting.
+**Cấu hình:** `contactFormId` trong `assets/js/config.js` sử dụng mã định tuyến lấy từ thư FormSubmit. Không đưa địa chỉ email nhận vào file này. Khi đổi tên miền, kiểm tra thư kích hoạt cho địa chỉ website mới và xác nhận trước khi sử dụng form. Nếu API yêu cầu kích hoạt, giao diện hiển thị thông báo phù hợp, không báo gửi thành công. Có thể dùng trang cấu hình cục bộ `.preview/email-setup.html` để kích hoạt email mới; file này không được đưa lên GitHub hoặc hosting.
 
-Để đổi email nhận, kích hoạt địa chỉ mới trên FormSubmit rồi thay `contactFormId` bằng mã tương ứng. Mã form là định tuyến công khai, không phải mật khẩu. Nó giấu địa chỉ email trong mã nguồn nhưng không ngăn mọi hình thức spam; CAPTCHA và bộ lọc phía dịch vụ xử lý việc hạn chế gửi rác. Không thêm `_captcha=false` vào form.
+Để đổi email nhận, kích hoạt địa chỉ mới trên FormSubmit rồi thay `contactFormId` bằng mã tương ứng. Mã form là định tuyến công khai, không phải mật khẩu. Nó giấu địa chỉ email trong mã nguồn nhưng không ngăn mọi hình thức spam. Luồng AJAX giữ trường bẫy bot `_honey` và dựa vào bộ lọc phía dịch vụ; không có bước CAPTCHA ở trang chuyển tiếp như luồng POST cũ. Không coi kiểm tra hoặc khóa nút trên trình duyệt là biện pháp chống spam phía máy chủ.
 
-Gửi form không tự xác nhận đặt xe. Nhà xe cần liên hệ khách để chốt giá và lịch xe. Email và CAPTCHA được dịch vụ bên ngoài xử lý. Thư thử kích hoạt đã được nhận; cần gửi thử từ trang liên hệ sau khi triển khai để kiểm tra toàn bộ luồng. Phải mở website qua HTTP/HTTPS để gửi, không gửi từ `file://`.
+Gửi form không tự xác nhận đặt xe hoặc xác nhận thư đã vào hộp thư đến. Nhà xe cần liên hệ khách để chốt giá và lịch xe. Lỗi SSL 525 tại `formsubmit.co` phải được nhà cung cấp xử lý; chỉnh JavaScript không thể sửa chứng chỉ máy chủ của họ. Kiểm tra trình duyệt dùng phản hồi API mô phỏng để xác minh giao diện và các nhánh lỗi, không chứng minh chuyển thư thật. Cần gửi thử từ trang liên hệ và kiểm tra Gmail sau khi dịch vụ hoạt động và form đã được kích hoạt. Phải mở website qua HTTP/HTTPS để gửi, không gửi từ `file://`.
 
 ## Kiểm tra tùy chọn
 

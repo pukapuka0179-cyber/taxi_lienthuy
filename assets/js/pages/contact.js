@@ -7,12 +7,14 @@
   const buttonLabel = button.querySelector('[data-i18n]');
   const query = new URLSearchParams(location.search);
   let submitting = false;
-  let feedback = query.get('sent') === '1' ? 'form.sent' : '';
+  let feedback = '';
+  const fields = [...form.querySelectorAll('input:not([type="hidden"]), select, textarea')];
   const choices = { tour: 'Xe 5 chỗ', wedding: 'Cưới hỏi', airport: 'Đón sân bay', province: 'Đi tỉnh xa' };
   const initial = [...form.querySelectorAll('[name="trip_service"]')].find(input => input.value === choices[query.get('service')]);
   if (initial) initial.checked = true;
   function render() {
     button.disabled = submitting;
+    fields.forEach(field => { field.disabled = submitting; });
     buttonLabel.dataset.i18n = submitting ? 'form.sending' : 'contact.018';
     buttonLabel.textContent = I18n.t(buttonLabel.dataset.i18n);
     form.setAttribute('aria-busy', String(submitting));
@@ -22,7 +24,7 @@
   }
   phone.addEventListener('input', () => phone.setCustomValidity(''));
   form.addEventListener('input', () => { feedback = ''; render(); });
-  form.addEventListener('submit', event => {
+  form.addEventListener('submit', async event => {
     event.preventDefault();
     if (submitting) return;
     for (const id of ['customerName', 'pickupPoint', 'dropPoint']) {
@@ -40,22 +42,42 @@
     if (!['http:', 'https:'].includes(location.protocol)) {
       feedback = 'form.webRequired'; render(); status.focus(); return;
     }
-    const next = new URL('lien-he.html', location.href);
-    next.searchParams.set('lang', I18n.language);
-    next.searchParams.set('sent', '1');
-    next.hash = 'booking';
-    form.action = `https://formsubmit.co/${encodeURIComponent(formId)}`;
-    form.elements._next.value = next.href;
     form.elements._url.value = new URL('lien-he.html', location.href).href;
     form.elements._subject.value = `Yêu cầu tư vấn xe – ${SiteConfig.name}`;
     form.elements.language.value = I18n.language;
+    const payload = Object.fromEntries(new FormData(form));
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12000);
     submitting = true; feedback = ''; render();
-    // Gửi POST thông thường để FormSubmit thực hiện CAPTCHA trên máy chủ.
-    try { HTMLFormElement.prototype.submit.call(form); }
-    catch (_) { submitting = false; feedback = 'form.error'; render(); }
+    try {
+      // Chỉ báo thành công khi API xác nhận; không chuyển khách sang trang dịch vụ.
+      const response = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(formId)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        credentials: 'omit',
+        referrerPolicy: 'origin',
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+      const result = await response.json();
+      const message = typeof result?.message === 'string' ? result.message : '';
+      if (/activat|confirm (?:your )?email|check your email/i.test(message)) {
+        feedback = 'form.activation';
+      } else if (!response.ok || ![true, 'true'].includes(result?.success)) {
+        feedback = 'form.error';
+      } else {
+        feedback = 'form.sent';
+      }
+    } catch (_) {
+      feedback = controller.signal.aborted ? 'form.timeout' : 'form.error';
+    } finally {
+      clearTimeout(timer);
+      submitting = false;
+      render();
+      status.focus();
+    }
   });
   document.addEventListener('languagechange', () => { phone.setCustomValidity(''); render(); });
-  window.addEventListener('pageshow', () => { submitting = false; render(); });
   if (query.has('sent')) {
     const clean = new URL(location.href); clean.searchParams.delete('sent');
     history.replaceState(null, '', clean.href);

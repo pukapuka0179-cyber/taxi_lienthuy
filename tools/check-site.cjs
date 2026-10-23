@@ -124,7 +124,7 @@ async function main() {
   await evaluate(`document.querySelector('[data-trip="wedding"]').click()`);
   assert.equal(await evaluate(`document.querySelectorAll('.trip-btn[aria-pressed="true"]').length`), 1);
   assert.match(await evaluate(`document.getElementById('dynamicZaloLink').href`), /service=wedding/);
-  // Intercept native submission in the browser: no test data is sent to a real mailbox.
+  // Mock the email API: no test data is sent to a real mailbox.
   await visit(`${base}/lien-he.html?lang=en&service=wedding#booking`);
   assert.equal(await evaluate(`document.querySelector('[name="trip_service"]:checked').value`), 'Cưới hỏi');
   assert.equal(await evaluate('document.getElementById("tripDate").type'), 'date');
@@ -147,7 +147,19 @@ async function main() {
   await evaluate(`Object.entries(window.savedTimeTranslations).forEach(([lang,text])=>Translations[lang]['form.time']=text); I18n.apply()`);
   await evaluate(`(() => {
     window.testSubmissions=[];
-    HTMLFormElement.prototype.submit=function(){window.testSubmissions.push({url:this.action,method:this.method,fields:Object.fromEntries(new FormData(this))})};
+    window.testFetchMode='pending';
+    window.fetch=(url,options)=>{
+      window.testSubmissions.push({url,method:options.method,fields:JSON.parse(options.body),headers:options.headers});
+      const json=data=>new Response(JSON.stringify(data),{status:200,headers:{'Content-Type':'application/json'}});
+      if(window.testFetchMode==='pending')return new Promise(resolve=>{window.finishSubmission=()=>resolve(json({success:'true',message:'Form successfully submitted'}))});
+      if(window.testFetchMode==='ssl')return Promise.resolve(new Response('<h1>SSL handshake failed</h1>',{status:525}));
+      if(window.testFetchMode==='rejected')return Promise.resolve(json({success:'false',message:'Unable to submit form'}));
+      if(window.testFetchMode==='activation')return Promise.resolve(json({success:'true',message:'Check your email to activate this form'}));
+      if(window.testFetchMode==='malformed')return Promise.resolve(json({message:'No acknowledgement'}));
+      if(window.testFetchMode==='network')return Promise.reject(new TypeError('Failed to fetch'));
+      if(window.testFetchMode==='timeout')return new Promise((resolve,reject)=>options.signal.addEventListener('abort',()=>reject(new DOMException('Aborted','AbortError')),{once:true}));
+      return Promise.resolve(json({success:true,message:'Form successfully submitted'}));
+    };
     for (const [id,value] of Object.entries({customerName:'Test <script>alert(1)</script>',customerPhone:'+84 914 531 983',pickupPoint:'Da Nang',dropPoint:'Hoi An',tripDate:'2030-12-25',tripNotes:'2 suitcases'})) document.getElementById(id).value=value;
     window.chooseTime('9','30','am');
     SiteConfig.contactFormId=''; document.querySelector('form button[type=submit]').click();
@@ -157,8 +169,9 @@ async function main() {
   assert.equal(await evaluate('document.getElementById("customerName").value'), 'Test <script>alert(1)</script>');
   await evaluate(`SiteConfig.contactFormId='0123456789abcdef0123456789abcdef'; document.querySelector('form button[type=submit]').click()`);
   const submission = await evaluate('window.testSubmissions[0]');
-  assert.equal(submission.url,'https://formsubmit.co/0123456789abcdef0123456789abcdef');
-  assert.equal(submission.method,'post');
+  assert.equal(submission.url,'https://formsubmit.co/ajax/0123456789abcdef0123456789abcdef');
+  assert.equal(submission.method,'POST');
+  assert.equal(submission.headers.Accept,'application/json');
   assert.equal(submission.fields.name,'Test <script>alert(1)</script>');
   assert.equal(submission.fields.phone,'+84914531983');
   assert.equal(submission.fields.trip_service,'Cưới hỏi');
@@ -168,35 +181,48 @@ async function main() {
   assert.equal(submission.fields._honey,'');
   assert.notEqual(submission.fields._captcha,'false');
   assert.equal(submission.fields.language,'en');
-  const next = new URL(submission.fields._next);
-  assert.equal(next.origin,base); assert.equal(next.searchParams.get('sent'),'1');
-  assert.equal(next.searchParams.get('lang'),'en'); assert.equal(next.hash,'#booking');
+  assert.equal(submission.fields._url,base+'/lien-he.html');
+  assert.equal(submission.fields._next,undefined);
   assert.equal(await evaluate('document.querySelector("form button[type=submit]").disabled'),true);
+  assert.equal(await evaluate('document.getElementById("tripHour").disabled'),true);
   await evaluate(`document.querySelector('form').dispatchEvent(new Event('submit',{cancelable:true}))`);
   assert.equal(await evaluate('window.testSubmissions.length'),1);
-  // Going back from the provider restores the form, allowing a correction or retry.
-  await evaluate(`window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true}))`);
+  const waitForBooking = () => evaluate(`new Promise(resolve=>{const timer=setInterval(()=>{if(document.getElementById('contactBookingForm').getAttribute('aria-busy')==='false'){clearInterval(timer);resolve(true)}},20)})`);
+  await evaluate('window.finishSubmission()');
+  await waitForBooking();
+  assert.equal(await evaluate('document.getElementById("bookingStatus").dataset.state'),'success');
+  assert.equal(await evaluate('location.href'),`${base}/lien-he.html?lang=en&service=wedding#booking`);
   assert.equal(await evaluate('document.querySelector("form button[type=submit]").disabled'),false);
+  assert.equal(await evaluate('document.getElementById("tripHour").disabled'),false);
   assert.equal(await evaluate(`document.getElementById('tripHour').value`), '9');
   await evaluate(`I18n.setLanguage('vi'); document.getElementById('tripHour').scrollIntoView({behavior:'instant',block:'center'})`);
   await screenshot('contact-separate-date-time-320.png');
   await evaluate(`I18n.setLanguage('en')`);
   // Optional date and time remain independent in the posted fields.
-  await evaluate(`window.chooseTime('','00','am'); document.querySelector('form button[type=submit]').click()`);
+  await evaluate(`window.testFetchMode='success'; window.chooseTime('','00','am'); document.querySelector('form button[type=submit]').click()`);
+  await waitForBooking();
   assert.equal(await evaluate('window.testSubmissions.at(-1).fields.time'),'');
   assert.equal(await evaluate('window.testSubmissions.at(-1).fields.date'),'2030-12-25');
-  await evaluate(`window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})); document.getElementById('tripDate').value=''; window.chooseTime('4','45','pm'); document.querySelector('form button[type=submit]').click()`);
+  await evaluate(`document.getElementById('tripDate').value=''; window.chooseTime('4','45','pm'); document.querySelector('form button[type=submit]').click()`);
+  await waitForBooking();
   const timeOnly = await evaluate('window.testSubmissions.at(-1).fields');
   assert.equal(timeOnly.time,'16:45'); assert.equal(timeOnly.date,'');
-  await evaluate(`window.dispatchEvent(new PageTransitionEvent('pageshow',{persisted:true})); HTMLFormElement.prototype.submit=function(){throw new Error('Simulated navigation failure')}; document.querySelector('form button[type=submit]').click()`);
-  assert.equal(await evaluate('document.getElementById("bookingStatus").textContent === I18n.t("form.error")'),true);
-  assert.equal(await evaluate('document.getElementById("customerName").value'),'Test <script>alert(1)</script>');
-  await visit(`${base}/lien-he.html?lang=en&sent=1#booking`);
-  assert.equal(await evaluate('document.getElementById("bookingStatus").dataset.state'),'success');
-  assert.equal(await evaluate('document.getElementById("bookingStatus").hidden'),false);
-  assert.equal(await evaluate('new URLSearchParams(location.search).has("sent")'),false);
+  // Service SSL errors, activation and timeouts must preserve input and never claim success.
+  for (const [mode,key] of [['ssl','form.error'],['rejected','form.error'],['malformed','form.error'],['network','form.error'],['activation','form.activation'],['timeout','form.timeout']]) {
+    await evaluate(`window.testFetchMode=${JSON.stringify(mode)}; document.querySelector('form button[type=submit]').click()`);
+    await waitForBooking();
+    assert.equal(await evaluate(`document.getElementById('bookingStatus').textContent === I18n.t(${JSON.stringify(key)})`),true,mode);
+    assert.equal(await evaluate('document.getElementById("bookingStatus").dataset.state'),'error',mode);
+    assert.equal(await evaluate('document.getElementById("customerName").value'),'Test <script>alert(1)</script>',mode);
+    assert.equal(await evaluate('document.getElementById("tripTime").value'),'16:45',mode);
+    assert.equal(await evaluate('document.getElementById("tripHour").disabled'),false,mode);
+    assert.equal(await evaluate('location.href'),`${base}/lien-he.html?lang=en&service=wedding#booking`,mode);
+  }
   await evaluate(`I18n.setLanguage('zh')`);
-  assert.equal(await evaluate('document.getElementById("bookingStatus").textContent === I18n.t("form.sent")'),true);
+  assert.equal(await evaluate('document.getElementById("bookingStatus").textContent === I18n.t("form.timeout")'),true);
+  await visit(`${base}/lien-he.html?lang=en&sent=1#booking`);
+  assert.equal(await evaluate('document.getElementById("bookingStatus").hidden'),true);
+  assert.equal(await evaluate('new URLSearchParams(location.search).has("sent")'),false);
   await visit(`${base}/quy-trinh.html?lang=zh`);
   assert.equal(await evaluate('I18n.t("message.template").includes("\\n")'), true);
   await evaluate(`window.copyText = async text => { window.copiedMessage = text; return true; }; document.getElementById('copyTemplateBtn').click()`);
