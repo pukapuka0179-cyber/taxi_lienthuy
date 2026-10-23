@@ -13,7 +13,13 @@ body[data-page="home"] h1 > .text-emerald-vivid { white-space: nowrap; }
 .booking-status { margin-top: 20px; padding: 16px; border-radius: 8px; line-height: 1.7; font-size: 14px; }
 .booking-status[data-state="success"] { background: var(--color-emerald-light); color: var(--color-emerald-deep); }
 .booking-status[data-state="error"] { background: var(--color-error-container); color: var(--color-on-error-container); }
-.form-honeypot { display: none; }
+.booking-status[data-state="info"] { background: var(--color-emerald-light); color: var(--color-emerald-deep); }
+.booking-result { margin-top: 24px; padding: 20px; border: 1px solid var(--color-border-subtle); border-radius: 12px; background: var(--color-emerald-light); }
+.booking-result h3 { margin: 0 0 8px; font-size: 18px; font-weight: 600; }
+.booking-result p { margin-bottom: 16px; line-height: 1.7; font-size: 14px; }
+.booking-result textarea { display: block; width: 100%; min-height: 260px; padding: 12px; border: 1px solid var(--color-border-subtle); border-radius: 8px; background: white; color: var(--color-ink-primary); font: inherit; font-size: 14px; line-height: 1.7; resize: vertical; }
+.booking-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.booking-actions .button { min-width: 0; flex: 1 1 160px; }
 body[data-page="contact"] button:disabled { opacity: .65; cursor: wait; }
 .copy-fallback { min-height: 180px; margin-top: 16px; }
 body[data-page="contact"] label { line-height: 1.65; }

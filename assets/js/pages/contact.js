@@ -1,59 +1,84 @@
 (() => {
   const form = document.getElementById('contactBookingForm');
   if (!form) return;
+  const result = document.getElementById('bookingResult');
+  const message = document.getElementById('bookingMessage');
   const status = document.getElementById('bookingStatus');
   const phone = document.getElementById('customerPhone');
-  const button = form.querySelector('[type="submit"]');
-  const buttonLabel = button.querySelector('[data-i18n]');
+  const submit = form.querySelector('[type="submit"]');
+  const submitLabel = submit.querySelector('[data-i18n]');
+  const copy = document.getElementById('copyBooking');
   const query = new URLSearchParams(location.search);
-  let submitting = false;
-  let feedback = '';
-  const fields = [...form.querySelectorAll('input:not([type="hidden"]), select, textarea')];
+  const fields = [...form.querySelectorAll('input, select, textarea')];
   const choices = { tour: 'Xe 5 chỗ', wedding: 'Cưới hỏi', airport: 'Đón sân bay', province: 'Đi tỉnh xa' };
   const initial = [...form.querySelectorAll('[name="trip_service"]')].find(input => input.value === choices[query.get('service')]);
   if (initial) initial.checked = true;
-  // Email dành cho nhà xe luôn dùng nhãn tiếng Việt, tách khỏi tên trường của form.
-  function emailPayload() {
+  let prepared = false;
+  let copying = false;
+  let feedback = '';
+  let messageLanguage = I18n.language;
+  function buildMessage() {
     const data = Object.fromEntries(new FormData(form));
-    const date = data.date ? data.date.split('-').reverse().join('/') : 'Chưa chọn ngày';
-    let time = 'Chưa chọn giờ';
-    if (data.time) {
-      const [hour, minute] = data.time.split(':');
-      const hours = Number(hour);
-      const period = hours === 0 ? 'đêm' : hours < 12 ? 'sáng' : hours === 12 ? 'trưa' : hours < 18 ? 'chiều' : 'tối';
-      time = `${String(hours % 12 || 12).padStart(2, '0')}:${minute} ${period}`;
-    }
-    return {
-      _subject: data._subject,
-      _template: data._template,
-      _url: data._url,
-      _honey: data._honey,
-      'Họ và tên': data.name,
-      'Số điện thoại / Zalo': data.phone,
-      'Nhu cầu chuyến đi': data.trip_service,
-      'Ngày khởi hành': date,
-      'Giờ khởi hành': time,
-      'Điểm đón': data.pickup,
-      'Điểm đến': data.destination,
-      'Ghi chú thêm': data.notes.trim() || 'Không có ghi chú',
-      'Ngôn ngữ khách sử dụng': { vi: 'Tiếng Việt', en: 'Tiếng Anh', zh: 'Tiếng Trung' }[I18n.language]
-    };
+    const selected = form.querySelector('[name="trip_service"]:checked');
+    const serviceKey = selected.closest('label').querySelector('[data-i18n]').dataset.i18n;
+    const lines = [
+      I18n.t('message.greeting'),
+      `${I18n.t('form.name')}: ${data.name}`,
+      `${I18n.t('form.phone')}: ${data.phone}`,
+      `${I18n.t('form.service')}: ${I18n.t(serviceKey)}`,
+      `${I18n.t('form.pickup')}: ${data.pickup}`,
+      `${I18n.t('form.destination')}: ${data.destination}`
+    ];
+    if (data.date) lines.push(`${I18n.t('form.date')}: ${data.date.split('-').reverse().join('/')}`);
+    if (data.time) lines.push(`${I18n.t('form.time')}: ${data.time}`);
+    if (data.notes.trim()) lines.push(`${I18n.t('form.notes')}: ${data.notes.trim()}`);
+    lines.push('', I18n.t('message.ending'));
+    return lines.join('\n');
   }
   function render() {
-    button.disabled = submitting;
-    fields.forEach(field => { field.disabled = submitting; });
-    buttonLabel.dataset.i18n = submitting ? 'form.sending' : 'contact.018';
-    buttonLabel.textContent = I18n.t(buttonLabel.dataset.i18n);
-    form.setAttribute('aria-busy', String(submitting));
+    submit.disabled = copying;
+    copy.disabled = copying;
+    fields.forEach(field => { field.disabled = copying; });
+    submitLabel.dataset.i18n = copying ? 'form.copying' : 'form.prepare';
+    submitLabel.textContent = I18n.t(submitLabel.dataset.i18n);
+    form.setAttribute('aria-busy', String(copying));
+    result.hidden = !prepared;
     status.hidden = !feedback;
     status.textContent = feedback ? I18n.t(feedback) : '';
-    status.dataset.state = feedback === 'form.sent' ? 'success' : 'error';
+    status.dataset.state = feedback === 'copy.success' ? 'success' : 'info';
+  }
+  async function copyMessage() {
+    if (copying) return;
+    copying = true;
+    feedback = 'form.ready';
+    render();
+    let copied = false;
+    let timer;
+    try {
+      copied = await Promise.race([
+        window.copyText(message.value),
+        new Promise(resolve => { timer = setTimeout(() => resolve(false), 1500); })
+      ]);
+    } catch (_) { /* Nội dung luôn có sẵn để chọn và sao chép thủ công. */ }
+    finally { clearTimeout(timer); copying = false; }
+    feedback = copied ? 'copy.success' : 'copy.manual';
+    render();
+    if (messageLanguage !== I18n.language) {
+      message.value = buildMessage();
+      messageLanguage = I18n.language;
+      feedback = 'form.ready';
+      render();
+      status.focus();
+      return;
+    }
+    if (copied) status.focus();
+    else { message.focus(); message.select(); }
   }
   phone.addEventListener('input', () => phone.setCustomValidity(''));
-  form.addEventListener('input', () => { feedback = ''; render(); });
+  form.addEventListener('input', () => { prepared = false; feedback = ''; render(); });
   form.addEventListener('submit', async event => {
     event.preventDefault();
-    if (submitting) return;
+    if (copying) return;
     for (const id of ['customerName', 'pickupPoint', 'dropPoint']) {
       const field = document.getElementById(id);
       field.value = field.value.trim();
@@ -61,49 +86,19 @@
     phone.value = phone.value.replace(/[\s().-]/g, '');
     phone.setCustomValidity(/^\+?[0-9]{9,15}$/.test(phone.value) ? '' : I18n.t('form.invalidPhone'));
     if (!form.reportValidity()) return;
-    // Email nằm tại dịch vụ; trình duyệt chỉ biết mã định tuyến công khai.
-    const formId = SiteConfig.contactFormId.trim();
-    if (!/^[a-zA-Z0-9_-]{16,128}$/.test(formId)) {
-      feedback = 'form.unavailable'; render(); status.focus(); return;
-    }
-    if (!['http:', 'https:'].includes(location.protocol)) {
-      feedback = 'form.webRequired'; render(); status.focus(); return;
-    }
-    form.elements._url.value = new URL('lien-he.html', location.href).href;
-    form.elements._subject.value = `Yêu cầu tư vấn xe – ${SiteConfig.name}`;
-    const payload = emailPayload();
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 12000);
-    submitting = true; feedback = ''; render();
-    try {
-      // Chỉ báo thành công khi API xác nhận; không chuyển khách sang trang dịch vụ.
-      const response = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(formId)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        credentials: 'omit',
-        referrerPolicy: 'origin',
-        body: JSON.stringify(payload),
-        signal: controller.signal
-      });
-      const result = await response.json();
-      const message = typeof result?.message === 'string' ? result.message : '';
-      if (/activat|confirm (?:your )?email|check your email/i.test(message)) {
-        feedback = 'form.activation';
-      } else if (!response.ok || ![true, 'true'].includes(result?.success)) {
-        feedback = 'form.error';
-      } else {
-        feedback = 'form.sent';
-      }
-    } catch (_) {
-      feedback = controller.signal.aborted ? 'form.timeout' : 'form.error';
-    } finally {
-      clearTimeout(timer);
-      submitting = false;
-      render();
-      status.focus();
-    }
+    message.value = buildMessage();
+    messageLanguage = I18n.language;
+    prepared = true;
+    result.hidden = false;
+    await copyMessage();
+    result.scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
   });
-  document.addEventListener('languagechange', () => { phone.setCustomValidity(''); render(); });
+  copy.addEventListener('click', copyMessage);
+  document.addEventListener('languagechange', () => {
+    phone.setCustomValidity('');
+    if (prepared && !copying) { message.value = buildMessage(); messageLanguage = I18n.language; feedback = 'form.ready'; }
+    render();
+  });
   if (query.has('sent')) {
     const clean = new URL(location.href); clean.searchParams.delete('sent');
     history.replaceState(null, '', clean.href);

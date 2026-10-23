@@ -14,6 +14,7 @@
           <div><h2 data-i18n="footer.commitments"></h2><ul>${['clean', 'driver', 'price', 'support'].map(key => `<li>${icon('check_circle')}<span data-i18n="footer.${key}"></span></li>`).join('')}</ul></div>
           <div><h2 data-i18n="footer.contact"></h2><ul>
             <li>${icon('phone_in_talk')}<div><span data-i18n="footer.hotline"></span><a class="footer-hotline" href="tel:${e(SiteConfig.phone)}">${e(SiteConfig.phoneDisplay)}</a></div></li>
+            <li>${icon('chat')}<a href="${e(SiteConfig.zalo)}" target="_blank" rel="noopener noreferrer">Zalo: ${e(SiteConfig.zaloDisplay)}</a></li>
             <li>${icon('schedule')}<span data-i18n="footer.hours"></span></li>
             <li>${icon('location_on')}<span data-i18n="footer.office"></span></li>
           </ul></div>

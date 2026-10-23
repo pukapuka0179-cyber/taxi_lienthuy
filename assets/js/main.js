@@ -1,6 +1,7 @@
 (() => {
   // Đồng bộ cả các số điện thoại và liên kết nằm trong nội dung riêng của trang.
   document.querySelectorAll('[data-phone-text]').forEach(node => { node.textContent = SiteConfig.phoneDisplay; });
+  document.querySelectorAll('[data-zalo-text]').forEach(node => { node.textContent = SiteConfig.zaloDisplay; });
   document.querySelectorAll('a[data-phone]').forEach(node => { node.href = `tel:${SiteConfig.phone}`; });
   document.querySelectorAll('a[data-zalo]').forEach(node => { node.href = SiteConfig.zalo; });
   document.querySelectorAll('img').forEach(image => {

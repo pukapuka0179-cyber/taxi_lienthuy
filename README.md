@@ -57,7 +57,7 @@ assets/
       en.js                     Nội dung tiếng Anh
       zh.js                     Nội dung tiếng Trung giản thể
     pages/
-      contact.js                Kiểm tra form và gửi yêu cầu qua dịch vụ email
+      contact.js                Kiểm tra form, tạo nội dung và sao chép để gửi qua Zalo
   images/                       Ảnh thực tế và ảnh minh họa từ mẫu
   fonts/                        Font Be Vietnam Pro và biểu tượng
 tools/                          Kiểm tra tùy chọn, không cần khi chạy web
@@ -77,15 +77,15 @@ Bộ chọn ngôn ngữ hỗ trợ Việt / English / 中文, nhớ lựa chọn
 
 ## Form tư vấn
 
-Form gửi JSON bằng POST đến API AJAX của FormSubmit, không chuyển khách sang trang ngoài. Chỉ hiện thành công khi API trả xác nhận rõ ràng; HTTP 200 đơn thuần hoặc đường dẫn `?sent=1` không được coi là đã gửi. Nếu dịch vụ lỗi SSL, mất mạng hoặc không trả xác nhận trong 12 giây, form báo lỗi tại chỗ và giữ nguyên dữ liệu để khách liên hệ hotline. Không tự gửi lại khi hết thời gian chờ vì dịch vụ có thể đã nhận yêu cầu nhưng chưa trả kết quả.
+Form dùng Zalo cá nhân số **0976.696.179**. Khách điền thông tin, bấm **Sao Chép Yêu Cầu**, rồi **Mở Zalo để gửi**, dán nội dung và bấm gửi trong cuộc trò chuyện. Website chỉ tạo và sao chép nội dung trên thiết bị, không tự gửi tin nhắn hoặc xác nhận nhà xe đã nhận được yêu cầu. Luồng này không gọi API email, không phụ thuộc FormSubmit hay Gmail.
 
-Ngày và giờ chọn riêng. Giờ dùng các ô giờ, phút và Sáng / Chiều (AM / PM với tiếng Anh, 上午 / 下午 với tiếng Trung), không phụ thuộc nhãn SA / CH của trình duyệt. Giá trị trong form dùng định dạng 24 giờ; khi gửi email, hàm `emailPayload()` trong `assets/js/pages/contact.js` đổi nhãn sang tiếng Việt dễ đọc, ngày thành `dd/mm/yyyy` và giờ thành `04:45 chiều`, `12:00 trưa` hoặc `12:00 đêm`. Trường tùy chọn chưa điền có mô tả rõ ràng, ngôn ngữ ghi đầy đủ thay vì mã `vi/en/zh`. Phần lời dẫn và tiêu đề cột của mẫu thư vẫn do FormSubmit quản lý.
+Nội dung tin nhắn có nhãn theo ngôn ngữ khách chọn (Việt, Anh hoặc Trung), ngày dạng `dd/mm/yyyy` và giờ dạng 24 giờ để tránh nhầm sáng/chiều. Ngày, giờ và ghi chú chưa điền sẽ không xuất hiện trong tin nhắn. Bộ chọn giờ trên form vẫn có ô giờ, phút và Sáng / Chiều riêng.
 
-**Cấu hình:** `contactFormId` trong `assets/js/config.js` sử dụng mã định tuyến lấy từ thư FormSubmit. Không đưa địa chỉ email nhận vào file này. Khi đổi tên miền, kiểm tra thư kích hoạt cho địa chỉ website mới và xác nhận trước khi sử dụng form. Nếu API yêu cầu kích hoạt, giao diện hiển thị thông báo phù hợp, không báo gửi thành công. Có thể dùng trang cấu hình cục bộ `.preview/email-setup.html` để kích hoạt email mới; file này không được đưa lên GitHub hoặc hosting.
+**Cấu hình:** sửa `zalo` và `zaloDisplay` trong `assets/js/config.js` để đổi tài khoản Zalo trên toàn website. Số gọi điện lấy từ `phone` và `phoneDisplay`, được quản lý riêng. Khách cần có tài khoản Zalo và đăng nhập để nhắn tin cho nhà xe.
 
-Để đổi email nhận, kích hoạt địa chỉ mới trên FormSubmit rồi thay `contactFormId` bằng mã tương ứng. Mã form là định tuyến công khai, không phải mật khẩu. Nó giấu địa chỉ email trong mã nguồn nhưng không ngăn mọi hình thức spam. Luồng AJAX giữ trường bẫy bot `_honey` và dựa vào bộ lọc phía dịch vụ; không có bước CAPTCHA ở trang chuyển tiếp như luồng POST cũ. Không coi kiểm tra hoặc khóa nút trên trình duyệt là biện pháp chống spam phía máy chủ.
+Nếu trình duyệt chặn clipboard, nội dung vẫn hiện trong ô chỉ đọc, được chọn sẵn để khách sao chép thủ công. Khi sửa thông tin form, bản nội dung cũ được ẩn để tránh gửi nhầm. Khi đổi ngôn ngữ, nội dung được cập nhật và khách được nhắc sao chép lại. Trang không tự mở cửa sổ ngoài; nút mở Zalo là liên kết do khách bấm.
 
-Gửi form không tự xác nhận đặt xe hoặc xác nhận thư đã vào hộp thư đến. Nhà xe cần liên hệ khách để chốt giá và lịch xe. Lỗi SSL 525 tại `formsubmit.co` phải được nhà cung cấp xử lý; chỉnh JavaScript không thể sửa chứng chỉ máy chủ của họ. Kiểm tra trình duyệt dùng phản hồi API mô phỏng để xác minh giao diện và các nhánh lỗi, không chứng minh chuyển thư thật. Cần gửi thử từ trang liên hệ và kiểm tra Gmail sau khi dịch vụ hoạt động và form đã được kích hoạt. Phải mở website qua HTTP/HTTPS để gửi, không gửi từ `file://`.
+Kiểm tra trình duyệt xác minh nội dung và clipboard bằng mô phỏng, kiểm tra liên kết đúng số Zalo, không gửi tin nhắn thật. Nhà xe vẫn cần trao đổi trực tiếp với khách để chốt giá và lịch xe. Các file thiết lập email cũ trong `.preview` là tài liệu thử nghiệm cục bộ và không được đưa lên GitHub hoặc hosting.
 
 ## Kiểm tra tùy chọn
 

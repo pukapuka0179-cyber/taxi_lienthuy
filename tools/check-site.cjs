@@ -124,118 +124,98 @@ async function main() {
   await evaluate(`document.querySelector('[data-trip="wedding"]').click()`);
   assert.equal(await evaluate(`document.querySelectorAll('.trip-btn[aria-pressed="true"]').length`), 1);
   assert.match(await evaluate(`document.getElementById('dynamicZaloLink').href`), /service=wedding/);
-  // Mock the email API: no test data is sent to a real mailbox.
+  // Zalo enquiries stay local: clipboard and external navigation are mocked.
   await visit(`${base}/lien-he.html?lang=en&service=wedding#booking`);
   assert.equal(await evaluate(`document.querySelector('[name="trip_service"]:checked').value`), 'Cưới hỏi');
   assert.equal(await evaluate('document.getElementById("tripDate").type'), 'date');
   assert.equal(await evaluate('document.getElementById("tripTime").type'), 'hidden');
   assert.equal(await evaluate(`document.querySelector('[data-i18n="form.time"]').textContent.trim()`), 'Departure time');
-  // Noon, midnight and afternoon must reach the mailbox as unambiguous 24-hour times.
   await evaluate(`window.chooseTime=(hour,minute,period)=>{document.getElementById('tripHour').value=hour; document.querySelector('[data-time-minute]').value=minute; const control=document.querySelector('[data-time-period]'); control.value=period; control.dispatchEvent(new Event('change',{bubbles:true}))}`);
-  for (const [hour, minute, period, expected] of [['4','00','pm','16:00'],['12','15','pm','12:15'],['12','00','am','00:00'],['','00','am','']]) {
+  for (const [hour,minute,period,expected] of [['4','00','pm','16:00'],['12','15','pm','12:15'],['12','00','am','00:00'],['','00','am','']]) {
     await evaluate(`window.chooseTime(${JSON.stringify(hour)},${JSON.stringify(minute)},${JSON.stringify(period)})`);
-    assert.equal(await evaluate('document.getElementById("tripTime").value'), expected);
+    assert.equal(await evaluate('document.getElementById("tripTime").value'),expected);
   }
   await evaluate(`I18n.setLanguage('vi')`);
-  assert.deepEqual(await evaluate(`Array.from(document.querySelector('[data-time-period]').options, option=>option.textContent)`), ['Sáng','Chiều']);
+  assert.deepEqual(await evaluate(`Array.from(document.querySelector('[data-time-period]').options,option=>option.textContent)`),['Sáng','Chiều']);
   await evaluate(`I18n.setLanguage('zh')`);
-  assert.deepEqual(await evaluate(`Array.from(document.querySelector('[data-time-period]').options, option=>option.textContent)`), ['上午','下午']);
+  assert.deepEqual(await evaluate(`Array.from(document.querySelector('[data-time-period]').options,option=>option.textContent)`),['上午','下午']);
   await evaluate(`I18n.setLanguage('en')`);
-  // A stale dictionary must preserve readable text instead of showing the key.
   await evaluate(`window.savedTimeTranslations=Object.fromEntries(Object.entries(Translations).map(([lang,dict])=>[lang,dict['form.time']])); Object.values(Translations).forEach(dict=>delete dict['form.time']); I18n.apply()`);
-  assert.equal(await evaluate(`document.querySelector('[data-i18n="form.time"]').textContent.trim()`), 'Departure time');
+  assert.equal(await evaluate(`document.querySelector('[data-i18n="form.time"]').textContent.trim()`),'Departure time');
   await evaluate(`Object.entries(window.savedTimeTranslations).forEach(([lang,text])=>Translations[lang]['form.time']=text); I18n.apply()`);
   await evaluate(`(() => {
-    window.testSubmissions=[];
-    window.testFetchMode='pending';
-    window.fetch=(url,options)=>{
-      window.testSubmissions.push({url,method:options.method,fields:JSON.parse(options.body),headers:options.headers});
-      const json=data=>new Response(JSON.stringify(data),{status:200,headers:{'Content-Type':'application/json'}});
-      if(window.testFetchMode==='pending')return new Promise(resolve=>{window.finishSubmission=()=>resolve(json({success:'true',message:'Form successfully submitted'}))});
-      if(window.testFetchMode==='ssl')return Promise.resolve(new Response('<h1>SSL handshake failed</h1>',{status:525}));
-      if(window.testFetchMode==='rejected')return Promise.resolve(json({success:'false',message:'Unable to submit form'}));
-      if(window.testFetchMode==='activation')return Promise.resolve(json({success:'true',message:'Check your email to activate this form'}));
-      if(window.testFetchMode==='malformed')return Promise.resolve(json({message:'No acknowledgement'}));
-      if(window.testFetchMode==='network')return Promise.reject(new TypeError('Failed to fetch'));
-      if(window.testFetchMode==='timeout')return new Promise((resolve,reject)=>options.signal.addEventListener('abort',()=>reject(new DOMException('Aborted','AbortError')),{once:true}));
-      return Promise.resolve(json({success:true,message:'Form successfully submitted'}));
-    };
-    for (const [id,value] of Object.entries({customerName:'Test <script>alert(1)</script>',customerPhone:'+84 914 531 983',pickupPoint:'Da Nang',dropPoint:'Hoi An',tripDate:'2030-12-25',tripNotes:'2 suitcases'})) document.getElementById(id).value=value;
+    window.networkCalls=0; window.openCalls=0; window.copyCalls=0;
+    window.fetch=()=>{window.networkCalls++;throw new Error('No email requests allowed')};
+    window.open=()=>{window.openCalls++;return null};
+    HTMLFormElement.prototype.submit=()=>{throw new Error('No native submission allowed')};
+    window.copyText=async text=>{window.copyCalls++;window.copiedMessage=text;return true};
+    for(const [id,value] of Object.entries({customerName:'Test <script>alert(1)</script>',customerPhone:'abc',pickupPoint:'Da Nang',dropPoint:'Hoi An',tripDate:'2030-12-25',tripNotes:'2 suitcases'}))document.getElementById(id).value=value;
     window.chooseTime('9','30','am');
-    SiteConfig.contactFormId=''; document.querySelector('form button[type=submit]').click();
+    document.querySelector('form button[type=submit]').click();
   })()`);
-  assert.equal(await evaluate('window.testSubmissions.length'), 0);
-  assert.equal(await evaluate('document.getElementById("bookingStatus").dataset.state'), 'error');
-  assert.equal(await evaluate('document.getElementById("customerName").value'), 'Test <script>alert(1)</script>');
-  await evaluate(`SiteConfig.contactFormId='0123456789abcdef0123456789abcdef'; document.querySelector('form button[type=submit]').click()`);
-  const submission = await evaluate('window.testSubmissions[0]');
-  assert.equal(submission.url,'https://formsubmit.co/ajax/0123456789abcdef0123456789abcdef');
-  assert.equal(submission.method,'POST');
-  assert.equal(submission.headers.Accept,'application/json');
-  assert.equal(submission.fields['Họ và tên'],'Test <script>alert(1)</script>');
-  assert.equal(submission.fields['Số điện thoại / Zalo'],'+84914531983');
-  assert.equal(submission.fields['Nhu cầu chuyến đi'],'Cưới hỏi');
-  assert.equal(submission.fields['Ngày khởi hành'],'25/12/2030');
-  assert.equal(submission.fields['Giờ khởi hành'],'09:30 sáng');
-  assert.equal(submission.fields['Ghi chú thêm'],'2 suitcases');
-  assert.equal(submission.fields['Điểm đón'],'Da Nang');
-  assert.equal(submission.fields['Điểm đến'],'Hoi An');
-  for (const key of ['name','phone','trip_service','date','time','pickup','destination','notes','language']) assert.equal(submission.fields[key],undefined);
-  assert.equal(submission.fields._honey,'');
-  assert.notEqual(submission.fields._captcha,'false');
-  assert.equal(submission.fields['Ngôn ngữ khách sử dụng'],'Tiếng Anh');
-  assert.equal(submission.fields._url,base+'/lien-he.html');
-  assert.equal(submission.fields._next,undefined);
-  assert.equal(await evaluate('document.querySelector("form button[type=submit]").disabled'),true);
-  assert.equal(await evaluate('document.getElementById("tripHour").disabled'),true);
-  await evaluate(`document.querySelector('form').dispatchEvent(new Event('submit',{cancelable:true}))`);
-  assert.equal(await evaluate('window.testSubmissions.length'),1);
-  const waitForBooking = () => evaluate(`new Promise(resolve=>{const timer=setInterval(()=>{if(document.getElementById('contactBookingForm').getAttribute('aria-busy')==='false'){clearInterval(timer);resolve(true)}},20)})`);
-  await evaluate('window.finishSubmission()');
+  assert.equal(await evaluate('document.getElementById("bookingResult").hidden'),true);
+  assert.equal(await evaluate('window.copyCalls'),0);
+  const waitForBooking=()=>evaluate(`new Promise(resolve=>{const timer=setInterval(()=>{if(document.getElementById('contactBookingForm').getAttribute('aria-busy')==='false'){clearInterval(timer);resolve(true)}},20)})`);
+  await evaluate(`document.getElementById('customerPhone').value='+84 914 531 983'; document.getElementById('customerPhone').dispatchEvent(new Event('input',{bubbles:true})); document.querySelector('form button[type=submit]').click()`);
   await waitForBooking();
-  assert.equal(await evaluate('document.getElementById("bookingStatus").dataset.state'),'success');
+  const booking=await evaluate('document.getElementById("bookingMessage").value');
+  assert.match(booking,/Full name: Test <script>alert\(1\)<\/script>/);
+  assert.match(booking,/Phone \/ Zalo: \+84914531983/);
+  assert.match(booking,/Departure date: 25\/12\/2030/);
+  assert.match(booking,/Departure time: 09:30/);
+  assert.match(booking,/Pick-up location: Da Nang/);
+  assert.match(booking,/Destination: Hoi An/);
+  assert.match(booking,/Notes: 2 suitcases/);
+  assert.ok(booking.includes('\n'));
+  assert.equal(await evaluate('window.copiedMessage'),booking);
+  assert.equal(await evaluate('document.getElementById("bookingMessage").readOnly'),true);
+  assert.equal(await evaluate('document.getElementById("bookingStatus").textContent===I18n.t("copy.success")'),true);
+  assert.equal(await evaluate('document.getElementById("openBookingZalo").href'),'https://zalo.me/0976696179');
+  assert.equal(await evaluate('document.getElementById("openBookingZalo").target'),'_blank');
+  assert.equal(await evaluate('document.getElementById("openBookingZalo").rel.includes("noopener")'),true);
   assert.equal(await evaluate('location.href'),`${base}/lien-he.html?lang=en&service=wedding#booking`);
-  assert.equal(await evaluate('document.querySelector("form button[type=submit]").disabled'),false);
-  assert.equal(await evaluate('document.getElementById("tripHour").disabled'),false);
-  assert.equal(await evaluate(`document.getElementById('tripHour').value`), '9');
-  await evaluate(`I18n.setLanguage('vi'); document.getElementById('tripHour').scrollIntoView({behavior:'instant',block:'center'})`);
-  await screenshot('contact-separate-date-time-320.png');
-  await evaluate(`I18n.setLanguage('en')`);
-  // Optional date and time remain independent in the posted fields.
-  await evaluate(`window.testFetchMode='success'; window.chooseTime('','00','am'); document.querySelector('form button[type=submit]').click()`);
+  assert.equal(await evaluate('window.openCalls'),0);
+  // Clipboard rejection or a pending permission prompt must leave a usable manual copy option.
+  for(const mode of ['false','throw','pending']) {
+    await evaluate(`window.copyText=${mode==='false'?'async()=>false':mode==='throw'?'async()=>{throw new Error("Clipboard denied")}':'()=>new Promise(()=>{})'}; document.getElementById('copyBooking').click()`);
+    await waitForBooking();
+    assert.equal(await evaluate('document.getElementById("bookingStatus").textContent===I18n.t("copy.manual")'),true,mode);
+    assert.equal(await evaluate('document.activeElement.id'),'bookingMessage',mode);
+    assert.equal(await evaluate('document.getElementById("bookingMessage").selectionEnd'),booking.length,mode);
+  }
+  // Changing language while copying must not claim the new text was already copied.
+  await evaluate(`window.copyCalls=0; window.copyText=text=>{window.copyCalls++;return new Promise(resolve=>{window.finishCopy=()=>resolve(true)})}; document.getElementById('copyBooking').click(); document.querySelector('form').dispatchEvent(new Event('submit',{cancelable:true})); I18n.setLanguage('zh')`);
+  assert.equal(await evaluate('window.copyCalls'),1);
+  await evaluate('window.finishCopy()');
   await waitForBooking();
-  assert.equal(await evaluate('window.testSubmissions.at(-1).fields["Giờ khởi hành"]'),'Chưa chọn giờ');
-  assert.equal(await evaluate('window.testSubmissions.at(-1).fields["Ngày khởi hành"]'),'25/12/2030');
+  assert.equal(await evaluate('document.getElementById("bookingStatus").textContent===I18n.t("form.ready")'),true);
+  assert.equal(await evaluate('document.getElementById("bookingMessage").value.includes("姓名")'),true);
+  // Every language keeps all entered details and uses its own service and field labels.
+  await evaluate('window.copyText=async text=>{window.copiedMessage=text;return true}');
+  for(const lang of ['vi','en','zh']) {
+    await evaluate(`I18n.setLanguage(${JSON.stringify(lang)}); document.querySelector('form button[type=submit]').click()`);
+    await waitForBooking();
+    assert.equal(await evaluate('document.getElementById("bookingMessage").value.includes(I18n.t("contact.027"))'),true,lang);
+    assert.equal(await evaluate('document.getElementById("bookingMessage").value===window.copiedMessage'),true,lang);
+  }
+  // Editing invalidates the previous message so an old itinerary cannot be sent accidentally.
+  await evaluate(`document.getElementById('pickupPoint').value='Ha Noi'; document.getElementById('pickupPoint').dispatchEvent(new Event('input',{bubbles:true}))`);
+  assert.equal(await evaluate('document.getElementById("bookingResult").hidden'),true);
+  await evaluate(`I18n.setLanguage('en'); window.chooseTime('','00','am'); document.querySelector('form button[type=submit]').click()`);
+  await waitForBooking();
+  assert.equal(await evaluate('document.getElementById("bookingMessage").value.includes("Departure time:")'),false);
+  assert.match(await evaluate('document.getElementById("bookingMessage").value'),/Departure date: 25\/12\/2030/);
   await evaluate(`document.getElementById('tripDate').value=''; window.chooseTime('4','45','pm'); document.querySelector('form button[type=submit]').click()`);
   await waitForBooking();
-  const timeOnly = await evaluate('window.testSubmissions.at(-1).fields');
-  assert.equal(timeOnly['Giờ khởi hành'],'04:45 chiều'); assert.equal(timeOnly['Ngày khởi hành'],'Chưa chọn ngày');
-  // Vietnamese email labels stay readable for every website language, including noon and midnight.
-  for (const [lang,language,hour,period,expected] of [['vi','Tiếng Việt','12','am','12:00 đêm'],['zh','Tiếng Trung','12','pm','12:00 trưa'],['en','Tiếng Anh','9','pm','09:00 tối']]) {
-    await evaluate(`I18n.setLanguage(${JSON.stringify(lang)}); window.chooseTime(${JSON.stringify(hour)},'00',${JSON.stringify(period)}); document.getElementById('tripNotes').value=''; document.querySelector('form button[type=submit]').click()`);
-    await waitForBooking();
-    const email = await evaluate('window.testSubmissions.at(-1).fields');
-    assert.equal(email['Giờ khởi hành'],expected);
-    assert.equal(email['Ngôn ngữ khách sử dụng'],language);
-    assert.equal(email['Ghi chú thêm'],'Không có ghi chú');
-  }
-  await evaluate(`window.chooseTime('4','45','pm')`);
-  // Service SSL errors, activation and timeouts must preserve input and never claim success.
-  for (const [mode,key] of [['ssl','form.error'],['rejected','form.error'],['malformed','form.error'],['network','form.error'],['activation','form.activation'],['timeout','form.timeout']]) {
-    await evaluate(`window.testFetchMode=${JSON.stringify(mode)}; document.querySelector('form button[type=submit]').click()`);
-    await waitForBooking();
-    assert.equal(await evaluate(`document.getElementById('bookingStatus').textContent === I18n.t(${JSON.stringify(key)})`),true,mode);
-    assert.equal(await evaluate('document.getElementById("bookingStatus").dataset.state'),'error',mode);
-    assert.equal(await evaluate('document.getElementById("customerName").value'),'Test <script>alert(1)</script>',mode);
-    assert.equal(await evaluate('document.getElementById("tripTime").value'),'16:45',mode);
-    assert.equal(await evaluate('document.getElementById("tripHour").disabled'),false,mode);
-    assert.equal(await evaluate('location.href'),`${base}/lien-he.html?lang=en&service=wedding#booking`,mode);
-  }
-  await evaluate(`I18n.setLanguage('zh')`);
-  assert.equal(await evaluate('document.getElementById("bookingStatus").textContent === I18n.t("form.timeout")'),true);
+  assert.equal(await evaluate('document.getElementById("bookingMessage").value.includes("Departure date:")'),false);
+  assert.match(await evaluate('document.getElementById("bookingMessage").value'),/Departure time: 16:45/);
+  assert.equal(await evaluate('window.networkCalls'),0);
+  await evaluate(`I18n.setLanguage('vi'); document.getElementById('bookingResult').scrollIntoView({behavior:'instant',block:'center'})`);
+  await screenshot('contact-zalo-message-320.png');
   await visit(`${base}/lien-he.html?lang=en&sent=1#booking`);
   assert.equal(await evaluate('document.getElementById("bookingStatus").hidden'),true);
   assert.equal(await evaluate('new URLSearchParams(location.search).has("sent")'),false);
+
   await visit(`${base}/quy-trinh.html?lang=zh`);
   assert.equal(await evaluate('I18n.t("message.template").includes("\\n")'), true);
   await evaluate(`window.copyText = async text => { window.copiedMessage = text; return true; }; document.getElementById('copyTemplateBtn').click()`);
