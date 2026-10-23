@@ -172,15 +172,18 @@ async function main() {
   assert.equal(submission.url,'https://formsubmit.co/ajax/0123456789abcdef0123456789abcdef');
   assert.equal(submission.method,'POST');
   assert.equal(submission.headers.Accept,'application/json');
-  assert.equal(submission.fields.name,'Test <script>alert(1)</script>');
-  assert.equal(submission.fields.phone,'+84914531983');
-  assert.equal(submission.fields.trip_service,'Cưới hỏi');
-  assert.equal(submission.fields.date,'2030-12-25');
-  assert.equal(submission.fields.time,'09:30');
-  assert.equal(submission.fields.notes,'2 suitcases');
+  assert.equal(submission.fields['Họ và tên'],'Test <script>alert(1)</script>');
+  assert.equal(submission.fields['Số điện thoại / Zalo'],'+84914531983');
+  assert.equal(submission.fields['Nhu cầu chuyến đi'],'Cưới hỏi');
+  assert.equal(submission.fields['Ngày khởi hành'],'25/12/2030');
+  assert.equal(submission.fields['Giờ khởi hành'],'09:30 sáng');
+  assert.equal(submission.fields['Ghi chú thêm'],'2 suitcases');
+  assert.equal(submission.fields['Điểm đón'],'Da Nang');
+  assert.equal(submission.fields['Điểm đến'],'Hoi An');
+  for (const key of ['name','phone','trip_service','date','time','pickup','destination','notes','language']) assert.equal(submission.fields[key],undefined);
   assert.equal(submission.fields._honey,'');
   assert.notEqual(submission.fields._captcha,'false');
-  assert.equal(submission.fields.language,'en');
+  assert.equal(submission.fields['Ngôn ngữ khách sử dụng'],'Tiếng Anh');
   assert.equal(submission.fields._url,base+'/lien-he.html');
   assert.equal(submission.fields._next,undefined);
   assert.equal(await evaluate('document.querySelector("form button[type=submit]").disabled'),true);
@@ -201,12 +204,22 @@ async function main() {
   // Optional date and time remain independent in the posted fields.
   await evaluate(`window.testFetchMode='success'; window.chooseTime('','00','am'); document.querySelector('form button[type=submit]').click()`);
   await waitForBooking();
-  assert.equal(await evaluate('window.testSubmissions.at(-1).fields.time'),'');
-  assert.equal(await evaluate('window.testSubmissions.at(-1).fields.date'),'2030-12-25');
+  assert.equal(await evaluate('window.testSubmissions.at(-1).fields["Giờ khởi hành"]'),'Chưa chọn giờ');
+  assert.equal(await evaluate('window.testSubmissions.at(-1).fields["Ngày khởi hành"]'),'25/12/2030');
   await evaluate(`document.getElementById('tripDate').value=''; window.chooseTime('4','45','pm'); document.querySelector('form button[type=submit]').click()`);
   await waitForBooking();
   const timeOnly = await evaluate('window.testSubmissions.at(-1).fields');
-  assert.equal(timeOnly.time,'16:45'); assert.equal(timeOnly.date,'');
+  assert.equal(timeOnly['Giờ khởi hành'],'04:45 chiều'); assert.equal(timeOnly['Ngày khởi hành'],'Chưa chọn ngày');
+  // Vietnamese email labels stay readable for every website language, including noon and midnight.
+  for (const [lang,language,hour,period,expected] of [['vi','Tiếng Việt','12','am','12:00 đêm'],['zh','Tiếng Trung','12','pm','12:00 trưa'],['en','Tiếng Anh','9','pm','09:00 tối']]) {
+    await evaluate(`I18n.setLanguage(${JSON.stringify(lang)}); window.chooseTime(${JSON.stringify(hour)},'00',${JSON.stringify(period)}); document.getElementById('tripNotes').value=''; document.querySelector('form button[type=submit]').click()`);
+    await waitForBooking();
+    const email = await evaluate('window.testSubmissions.at(-1).fields');
+    assert.equal(email['Giờ khởi hành'],expected);
+    assert.equal(email['Ngôn ngữ khách sử dụng'],language);
+    assert.equal(email['Ghi chú thêm'],'Không có ghi chú');
+  }
+  await evaluate(`window.chooseTime('4','45','pm')`);
   // Service SSL errors, activation and timeouts must preserve input and never claim success.
   for (const [mode,key] of [['ssl','form.error'],['rejected','form.error'],['malformed','form.error'],['network','form.error'],['activation','form.activation'],['timeout','form.timeout']]) {
     await evaluate(`window.testFetchMode=${JSON.stringify(mode)}; document.querySelector('form button[type=submit]').click()`);

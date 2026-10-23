@@ -12,6 +12,33 @@
   const choices = { tour: 'Xe 5 chỗ', wedding: 'Cưới hỏi', airport: 'Đón sân bay', province: 'Đi tỉnh xa' };
   const initial = [...form.querySelectorAll('[name="trip_service"]')].find(input => input.value === choices[query.get('service')]);
   if (initial) initial.checked = true;
+  // Email dành cho nhà xe luôn dùng nhãn tiếng Việt, tách khỏi tên trường của form.
+  function emailPayload() {
+    const data = Object.fromEntries(new FormData(form));
+    const date = data.date ? data.date.split('-').reverse().join('/') : 'Chưa chọn ngày';
+    let time = 'Chưa chọn giờ';
+    if (data.time) {
+      const [hour, minute] = data.time.split(':');
+      const hours = Number(hour);
+      const period = hours === 0 ? 'đêm' : hours < 12 ? 'sáng' : hours === 12 ? 'trưa' : hours < 18 ? 'chiều' : 'tối';
+      time = `${String(hours % 12 || 12).padStart(2, '0')}:${minute} ${period}`;
+    }
+    return {
+      _subject: data._subject,
+      _template: data._template,
+      _url: data._url,
+      _honey: data._honey,
+      'Họ và tên': data.name,
+      'Số điện thoại / Zalo': data.phone,
+      'Nhu cầu chuyến đi': data.trip_service,
+      'Ngày khởi hành': date,
+      'Giờ khởi hành': time,
+      'Điểm đón': data.pickup,
+      'Điểm đến': data.destination,
+      'Ghi chú thêm': data.notes.trim() || 'Không có ghi chú',
+      'Ngôn ngữ khách sử dụng': { vi: 'Tiếng Việt', en: 'Tiếng Anh', zh: 'Tiếng Trung' }[I18n.language]
+    };
+  }
   function render() {
     button.disabled = submitting;
     fields.forEach(field => { field.disabled = submitting; });
@@ -44,8 +71,7 @@
     }
     form.elements._url.value = new URL('lien-he.html', location.href).href;
     form.elements._subject.value = `Yêu cầu tư vấn xe – ${SiteConfig.name}`;
-    form.elements.language.value = I18n.language;
-    const payload = Object.fromEntries(new FormData(form));
+    const payload = emailPayload();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 12000);
     submitting = true; feedback = ''; render();
